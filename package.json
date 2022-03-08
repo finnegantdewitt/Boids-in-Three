@@ -1,0 +1,29 @@
+{
+  "name": "asg5",
+  "version": "1.0.0",
+  "description": "",
+  "main": "public/dist/index.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "start": "npm run build && webpack serve"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "lil-gui": "^0.16.1",
+    "three": "^0.138.3"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.17.6",
+    "@babel/core": "^7.17.5",
+    "@babel/preset-env": "^7.16.11",
+    "babel-loader": "^8.2.3",
+    "html-webpack-plugin": "^5.5.0",
+    "http-server": "^14.1.0",
+    "nodemon": "^2.0.15",
+    "webpack": "^5.70.0",
+    "webpack-cli": "^4.9.2",
+    "webpack-dev-server": "^4.7.4"
+  }
+}
