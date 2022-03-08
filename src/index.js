@@ -1,5 +1,12 @@
 import * as THREE from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import arcade_carpet from "./img/arcade_carpet.png";
+import skybox_back from "./img/sky/skybox_back.png";
+import skybox_down from "./img/sky/skybox_down.png";
+import skybox_front from "./img/sky/skybox_front.png";
+import skybox_left from "./img/sky/skybox_left.png";
+import skybox_right from "./img/sky/skybox_right.png";
+import skybox_up from "./img/sky/skybox_up.png";
 import GUI from "lil-gui";
 
 let camera, scene, renderer, controls;
@@ -109,22 +116,31 @@ function init() {
     10
   );
 
+  // skybox
+  const cubeTextureLoader = new THREE.CubeTextureLoader();
+  const skybox = cubeTextureLoader.load([
+    skybox_left,
+    skybox_right,
+    skybox_up,
+    skybox_down,
+    skybox_front,
+    skybox_back,
+  ]);
+  scene.background = skybox;
+
   // floor plane
   const planeSize = 2000;
   const loader = new THREE.TextureLoader();
-  const texture = loader.load(
-    "https://threejs.org/manual/examples/resources/images/checker.png"
-  );
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.magFilter = THREE.NearestFilter;
-  const repeats = planeSize / 2;
-  texture.repeat.set(repeats, repeats);
+  const floorTexture = loader.load(arcade_carpet);
+  floorTexture.wrapS = THREE.RepeatWrapping;
+  floorTexture.wrapT = THREE.RepeatWrapping;
+  floorTexture.magFilter = THREE.NearestFilter;
+  floorTexture.repeat.set(planeSize / 64, planeSize / 64);
 
-  let floorGeometry = new THREE.PlaneGeometry(planeSize, planeSize, 100, 100);
   const floorMaterial = new THREE.MeshPhongMaterial({
-    map: texture,
+    map: floorTexture,
   });
+  const floorGeometry = new THREE.PlaneGeometry(planeSize, planeSize, 100, 100);
   const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
   floorMesh.rotation.x = -Math.PI / 2;
 
@@ -144,6 +160,7 @@ function onWindowResize() {
 
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
 function animate() {
   requestAnimationFrame(animate);
 
@@ -152,8 +169,8 @@ function animate() {
   if (controls.isLocked === true) {
     const delta = (time - prevTime) / 1000;
 
-    velocity.x -= velocity.x * 10.0 * delta;
-    velocity.z -= velocity.z * 10.0 * delta;
+    velocity.x -= velocity.x * 5.0 * delta;
+    velocity.z -= velocity.z * 5.0 * delta;
 
     velocity.y -= 9.8 * 100.0 * delta;
 
