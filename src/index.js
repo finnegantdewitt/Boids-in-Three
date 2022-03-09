@@ -22,6 +22,7 @@ let moveLeft = false;
 let moveRight = false;
 let canJump = false;
 let stats;
+const objCount = 10;
 
 let prevTime = performance.now();
 const velocity = new THREE.Vector3();
@@ -33,23 +34,48 @@ const white = new THREE.Color().setHex(0xffffff);
 init();
 animate();
 
-function makeSpheres() {
-  const spheresGeometry = new THREE.IcosahedronGeometry(1, 3);
-  const spheresMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  const spheresCount = 10;
-  const spheresMesh = new THREE.InstancedMesh(
-    spheresGeometry,
-    spheresMaterial,
-    spheresCount
-  );
-  const spheresOffset = spheresCount * 2;
+function makeIcosahedron() {
+  const Geometry = new THREE.IcosahedronGeometry(1);
+  const Material = new THREE.MeshPhongMaterial({ color: 0xffffff });
+  const Count = objCount;
+  const Mesh = new THREE.InstancedMesh(Geometry, Material, Count);
+  const Offset = Count * 2.5;
   const matrix = new THREE.Matrix4();
-  for (let i = 0; i < spheresCount; i++) {
-    matrix.setPosition(0, spheresOffset - i * 2, -20);
-    spheresMesh.setMatrixAt(i, matrix);
-    spheresMesh.setColorAt(i, new THREE.Color().setHex(0xffffff));
+  for (let i = 0; i < Count; i++) {
+    matrix.setPosition(0, Offset - i * 2.5, -20);
+    Mesh.setMatrixAt(i, matrix);
+    Mesh.setColorAt(i, new THREE.Color().setHex(0xffffff));
   }
-  return spheresMesh;
+  return Mesh;
+}
+
+function makeCubes() {
+  const Geometry = new THREE.BoxGeometry(1.8, 1.8, 1.8);
+  const Material = new THREE.MeshPhongMaterial({ color: 0xffffff });
+  const Count = objCount;
+  const Mesh = new THREE.InstancedMesh(Geometry, Material, Count);
+  const Offset = Count * 2.5;
+  const matrix = new THREE.Matrix4();
+  for (let i = 0; i < Count; i++) {
+    matrix.setPosition(5, Offset - i * 2.5, -20);
+    Mesh.setMatrixAt(i, matrix);
+    Mesh.setColorAt(i, new THREE.Color().setHex(0xffffff));
+  }
+  return Mesh;
+}
+function makeCylinders() {
+  const Geometry = new THREE.CylinderGeometry(1.3, 1.3, 1, 12);
+  const Material = new THREE.MeshPhongMaterial({ color: 0xffffff });
+  const Count = objCount;
+  const Mesh = new THREE.InstancedMesh(Geometry, Material, Count);
+  const Offset = Count * 2.5;
+  const matrix = new THREE.Matrix4();
+  for (let i = 0; i < Count; i++) {
+    matrix.setPosition(10, Offset - i * 2.5, -20);
+    Mesh.setMatrixAt(i, matrix);
+    Mesh.setColorAt(i, new THREE.Color().setHex(0xffffff));
+  }
+  return Mesh;
 }
 
 function init() {
@@ -221,9 +247,17 @@ function init() {
   scene.add(floorMesh);
 
   // basic scene
-  let spheresMesh = makeSpheres();
+  let spheresMesh = makeIcosahedron();
   objects.push(spheresMesh);
   scene.add(spheresMesh);
+
+  let cubesMesh = makeCubes();
+  objects.push(cubesMesh);
+  scene.add(cubesMesh);
+
+  let cylindersMesh = makeCylinders();
+  objects.push(cylindersMesh);
+  scene.add(cylindersMesh);
 
   // renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -275,30 +309,65 @@ function animate() {
     mouse3D.normalize();
     controls.getDirection(mouse3D);
 
-    // let coords = { x: mouse3D.x, y: mouse3D.y };
     raycaster.set(camera.position, mouse3D);
 
     const intersections = raycaster.intersectObjects(objects);
     if (intersections.length > 0) {
-      console.log(intersections);
       const closest = intersections.reduce((prev, curr) => {
         return prev.distance < curr.distance ? prev : curr;
       });
 
       const instanceId = closest.instanceId;
+      const mesh = closest.object;
 
-      objects[0].getColorAt(instanceId, color);
+      mesh.getColorAt(instanceId, color);
 
       if (color.equals(white)) {
-        objects[0].setColorAt(
-          instanceId,
-          color.setHex(Math.random() * 0xffffff)
-        );
-
-        objects[0].instanceColor.needsUpdate = true;
+        mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff));
+        mesh.instanceColor.needsUpdate = true;
       }
-      //   closest.object.getColorAt(closest.instanceId, objColor);
     }
+
+    // causally move shapes
+    const clock = Date.now() * 0.001;
+    const dummy = new THREE.Object3D();
+    const dummyMatrix = new THREE.Matrix4();
+    const offset = objCount * 2.5;
+    objects.forEach((obj, idx) => {
+      for (let i = 0; i < objCount; i++) {
+        dummy.position.set(idx * 5, offset - i * 2.5, -20);
+        dummy.rotation.y =
+          Math.sin(i / 4 + clock) +
+          Math.sin(i / 4 + clock) +
+          Math.sin(i / 4 + clock);
+        dummy.rotation.z = dummy.rotation.y * 2;
+        dummy.updateMatrix();
+        obj.setMatrixAt(i, dummy.matrix);
+        // const speed = 0.2 + i * 0.1;
+        // const rot = time * speed;
+        // obj[idx].rotation.x = rot;
+        // obj[idx].rotation.y = rot;
+      }
+      obj.instanceMatrix.needsUpdate = true;
+    });
+
+    // objects.forEach((obj) => {
+    //   const clock = Date.now() * 0.001;
+    //   obj.rotation.x = Math.sin(clock / 4);
+    //   obj.rotation.y = Math.sin(clock / 2);
+
+    //   const dummy = new THREE.Object3D();
+    //   for (let i = 0; i < objCount; i++) {
+    //     dummy.position.set(obj.position.x, obj.position.y, obj.position.z);
+    //     dummy.rotation.y =
+    //       Math.sin(i / 4 + clock) +
+    //       Math.sin(i / 4 + clock) +
+    //       Math.sin(i / 4 + clock);
+    //     dummy.rotation.z = dummy.rotation.y * 2;
+    //     dummy.updateMatrix();
+    //     obj.setMatrixAt(i++, dummy.matrix);
+    //   }
+    // });
   }
 
   prevTime = time;
