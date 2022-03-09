@@ -9,6 +9,13 @@ import skybox_right from "./img/sky/skybox_right.png";
 import skybox_up from "./img/sky/skybox_up.png";
 import GUI from "lil-gui";
 import Stats from "three/examples/jsm/libs/stats.module";
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import arcadeMtl from "../public/AsterFireArcade.mtl";
+import arcadeObj from "../public/AsterFireArcade.obj";
+import { PointLight, PointLightHelper } from "three";
+// import AsterFireTitleScreen from "./Arcade_Cabinet_Obj/AsterFire Title screen.png";
 
 let camera, scene, renderer, controls;
 
@@ -23,6 +30,8 @@ let moveRight = false;
 let canJump = false;
 let stats;
 const objCount = 10;
+
+let spotLightHelper;
 
 let prevTime = performance.now();
 const velocity = new THREE.Vector3();
@@ -85,7 +94,7 @@ function init() {
     1,
     1000
   );
-  camera.position.y = 10;
+  camera.position.y = 15;
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
@@ -115,57 +124,19 @@ function init() {
   });
 
   scene.add(controls.getObject());
-
-  //   const spotLight = new THREE.SpotLight(0xffffff, 1);
-  //   spotLight.position.set(...camera.position);
-  //   spotLight.target.position.set(
-  //     spotLight.position.x,
-  //     camera.position.y / 2,
-  //     camera.position.z + 10
-  //   );
-  //   spotLight.angle = Math.PI / 4;
-  //   camera.add(spotLight);
-  //   camera.add(spotLight.target);
-  //   console.log(camera);
-  //   let spotLightHelper = new THREE.SpotLightHelper(spotLight);
-  //   camera.add(spotLightHelper);
-
-  //   let gui = new GUI();
-  //   gui
-  //     .add(spotLight.position, "x", 0, 100, 1)
-  //     .name("x")
-  //     .onChange((x) => {
-  //       spotLight.position.x = x;
-  //       spotLight.target.position.set(
-  //         spotLight.position.x,
-  //         spotLight.position.y / 2,
-  //         spotLight.position.z
-  //       );
-  //     });
-  //   gui
-  //     .add(spotLight.position, "y", 0, 100, 1)
-  //     .name("y")
-  //     .onChange((y) => {
-  //       spotLight.position.y = y;
-  //       spotLight.target.position.set(
-  //         spotLight.position.x,
-  //         spotLight.position.y / 2,
-  //         spotLight.position.z
-  //       );
-  //     });
-  //   gui
-  //     .add(spotLight.position, "z", 0, 100, 1)
-  //     .name("z")
-  //     .onChange((z) => {
-  //       spotLight.position.z = z;
-  //       spotLight.target.position.set(
-  //         spotLight.position.x,
-  //         spotLight.position.y / 2,
-  //         spotLight.position.z
-  //       );
-  //     });
-  //   gui.add(spotLight, "angle", 0, Math.PI / 3, Math.PI / 180).name("angle");
-  //   gui.open();
+  {
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load(
+      "https://threejs.org/manual/examples/resources/models/knight/KnightCharacter.gltf",
+      (gltf) => {
+        const root = gltf.scene;
+        root.translateY(10);
+        root.translateZ(-30);
+        root.translateX(-30);
+        scene.add(root);
+      }
+    );
+  }
 
   const onKeyDown = function (event) {
     switch (event.code) {
@@ -259,6 +230,20 @@ function init() {
   objects.push(cylindersMesh);
   scene.add(cylindersMesh);
 
+  // add spotlight to basic scene
+  const lightSourceGeo = new THREE.BoxGeometry(1, 2, 1);
+  const lightSourceMat = new THREE.MeshPhongMaterial({ emissive: 0xffff00 });
+  const lightSourceMesh = new THREE.Mesh(lightSourceGeo, lightSourceMat);
+  lightSourceMesh.position.set(5, 35, -20);
+  const spotLight = new THREE.SpotLight(0xffffff, 1);
+  spotLight.target.position.set(5, 0, -20);
+  spotLight.angle = Math.PI / 6;
+  lightSourceMesh.add(spotLight);
+  scene.add(lightSourceMesh);
+  scene.add(spotLight.target);
+  //   spotLightHelper = new THREE.SpotLightHelper(spotLight);
+  //   scene.add(spotLightHelper);
+
   // renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -331,7 +316,6 @@ function animate() {
     // causally move shapes
     const clock = Date.now() * 0.001;
     const dummy = new THREE.Object3D();
-    const dummyMatrix = new THREE.Matrix4();
     const offset = objCount * 2.5;
     objects.forEach((obj, idx) => {
       for (let i = 0; i < objCount; i++) {
@@ -343,33 +327,11 @@ function animate() {
         dummy.rotation.z = dummy.rotation.y * 2;
         dummy.updateMatrix();
         obj.setMatrixAt(i, dummy.matrix);
-        // const speed = 0.2 + i * 0.1;
-        // const rot = time * speed;
-        // obj[idx].rotation.x = rot;
-        // obj[idx].rotation.y = rot;
       }
       obj.instanceMatrix.needsUpdate = true;
     });
-
-    // objects.forEach((obj) => {
-    //   const clock = Date.now() * 0.001;
-    //   obj.rotation.x = Math.sin(clock / 4);
-    //   obj.rotation.y = Math.sin(clock / 2);
-
-    //   const dummy = new THREE.Object3D();
-    //   for (let i = 0; i < objCount; i++) {
-    //     dummy.position.set(obj.position.x, obj.position.y, obj.position.z);
-    //     dummy.rotation.y =
-    //       Math.sin(i / 4 + clock) +
-    //       Math.sin(i / 4 + clock) +
-    //       Math.sin(i / 4 + clock);
-    //     dummy.rotation.z = dummy.rotation.y * 2;
-    //     dummy.updateMatrix();
-    //     obj.setMatrixAt(i++, dummy.matrix);
-    //   }
-    // });
   }
-
+  //   spotLightHelper.update();
   prevTime = time;
   renderer.render(scene, camera);
   stats.update();
