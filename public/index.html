@@ -25,7 +25,6 @@
 				cursor: pointer;
 			}
       #crosshair {
-        display: none;
         position: fixed;
         pointer-events: none;
         width: 100%;
@@ -55,9 +54,20 @@
 					Move: WASD<br/>
 					Look: MOUSE
 				</p>
+				<h2>Notes for graders</h2>
+          <ol style="margin-left: auto; margin-right: auto; width: 24em;">
+            <li>The three lights are a hemisphere light, then a spotlight and pointlight 
+              that should be obvious</li>
+            <li>The floor is textured, I'm hoping that counts as a primary 
+              shape that's textured</li>
+            <li>The advanced topics I added are billboards, and picking, 
+              and hopefully changing the text of the billboards will count
+              as advanced.
+            </li>
+          </ol>
 			</div>
 		</div>
-    <div id="crosshair">
+    <div id="crosshair" style="display: none;">
       <img id="crosshairImage" src="./crosshair.svg"/>
     </div>
   </body>

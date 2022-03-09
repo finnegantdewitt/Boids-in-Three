@@ -9,14 +9,9 @@ import skybox_right from "./img/sky/skybox_right.png";
 import skybox_up from "./img/sky/skybox_up.png";
 import GUI from "lil-gui";
 import Stats from "three/examples/jsm/libs/stats.module";
-import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry";
-import arcadeMtl from "../public/AsterFireArcade.mtl";
-import arcadeObj from "../public/AsterFireArcade.obj";
-import { PointLight, PointLightHelper } from "three";
 // import AsterFireTitleScreen from "./Arcade_Cabinet_Obj/AsterFire Title screen.png";
 
 let camera, scene, renderer, controls;
@@ -35,6 +30,11 @@ let stats;
 const objCount = 10;
 let colorsFilled = 0;
 let isColorsFilled = false;
+
+let isMouseDown = false;
+let theGuy;
+let pointLightMesh;
+let pointLight;
 
 let spotLightHelper;
 
@@ -99,7 +99,9 @@ function init() {
     1,
     1000
   );
+  camera.position.x = -16;
   camera.position.y = 15;
+  camera.position.z = 8;
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
@@ -113,6 +115,8 @@ function init() {
   const blocker = document.getElementById("blocker");
   const instructions = document.getElementById("instructions");
   const crosshair = document.getElementById("crosshair");
+  const crosshairImage = document.getElementById("crosshairImage");
+  crosshairImage.style.display = "none";
 
   instructions.addEventListener("click", function () {
     controls.lock();
@@ -121,11 +125,19 @@ function init() {
     instructions.style.display = "none";
     blocker.style.display = "none";
     crosshair.style.display = "";
+    crosshairImage.style.display = "";
   });
   controls.addEventListener("unlock", function () {
     blocker.style.display = "block";
     instructions.style.display = "";
     crosshair.style.display = "none";
+    crosshairImage.style.display = "none";
+  });
+  window.addEventListener("mousedown", () => {
+    isMouseDown = true;
+  });
+  window.addEventListener("mouseup", () => {
+    isMouseDown = false;
   });
 
   scene.add(controls.getObject());
@@ -140,7 +152,8 @@ function init() {
         root.translateY(10);
         root.translateZ(-30);
         root.translateX(-30);
-        scene.add(root);
+        theGuy = root;
+        scene.add(theGuy);
       }
     );
   }
@@ -251,6 +264,20 @@ function init() {
   //   spotLightHelper = new THREE.SpotLightHelper(spotLight);
   //   scene.add(spotLightHelper);
 
+  // add pointLight that guy will give you
+  const pointLightGeo = new THREE.SphereGeometry(0.5, 8, 8);
+  const pointLightMat = new THREE.MeshPhongMaterial({ emissive: 0xffff00 });
+  pointLightMesh = new THREE.Mesh(pointLightGeo, pointLightMat);
+  pointLightMesh.position.set(-30, 13, -28);
+  pointLight = new THREE.PointLight(0xffffff, 1);
+  pointLight.angle = Math.PI / 6;
+  pointLightMesh.add(pointLight);
+  pointLightMesh.visible = false;
+  pointLight.intensity = 0;
+  scene.add(pointLightMesh);
+  //   spotLightHelper = new THREE.SpotLightHelper(spotLight);
+  //   scene.add(spotLightHelper);
+
   // load the text
   {
     function addObject(x, y, z, name, isVisible, obj) {
@@ -343,6 +370,29 @@ function init() {
       });
 
       addSolidGeometry(-35, 20, -30, "Click Me!", true, guyTextGeometry);
+
+      const guyTextLightOnGeometry = new TextGeometry(
+        "Hello, I have a point light for you",
+        {
+          font: font,
+          size: 2.0,
+          height: 0.2,
+          curveSegments: 12,
+          bevelEnabled: true,
+          bevelThickness: 0.15,
+          bevelSize: 0.3,
+          bevelSegments: 5,
+        }
+      );
+
+      addSolidGeometry(
+        -45,
+        20,
+        -30,
+        "Hello, I have a point light for you",
+        false,
+        guyTextLightOnGeometry
+      );
     }
     doit();
   }
@@ -415,6 +465,24 @@ function animate() {
         colorsFilled += 1;
         mesh.instanceColor.needsUpdate = true;
       }
+    }
+
+    // check the guy have the mouseDown on him
+    if (isMouseDown) {
+      const intersected = raycaster.intersectObject(theGuy);
+      if (intersected.length > 0) {
+        textObjs.forEach((obj) => {
+          if (obj.name === "Click Me!") {
+            obj.visible = false;
+          }
+          if (obj.name === "Hello, I have a point light for you") {
+            obj.visible = true;
+          }
+        });
+        pointLightMesh.visible = true;
+        pointLight.intensity = 1;
+      }
+      console.log(intersected);
     }
 
     // check if shapes have been filled
