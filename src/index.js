@@ -12,6 +12,8 @@ import Stats from "three/examples/jsm/libs/stats.module";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { FontLoader } from "three/examples/jsm/loaders/FontLoader";
+import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry";
 import arcadeMtl from "../public/AsterFireArcade.mtl";
 import arcadeObj from "../public/AsterFireArcade.obj";
 import { PointLight, PointLightHelper } from "three";
@@ -20,6 +22,7 @@ import { PointLight, PointLightHelper } from "three";
 let camera, scene, renderer, controls;
 
 const objects = [];
+const textObjs = [];
 
 let raycaster = new THREE.Raycaster();
 
@@ -30,6 +33,8 @@ let moveRight = false;
 let canJump = false;
 let stats;
 const objCount = 10;
+let colorsFilled = 0;
+let isColorsFilled = false;
 
 let spotLightHelper;
 
@@ -124,6 +129,8 @@ function init() {
   });
 
   scene.add(controls.getObject());
+
+  // load the guy
   {
     const gltfLoader = new GLTFLoader();
     gltfLoader.load(
@@ -244,6 +251,102 @@ function init() {
   //   spotLightHelper = new THREE.SpotLightHelper(spotLight);
   //   scene.add(spotLightHelper);
 
+  // load the text
+  {
+    function addObject(x, y, z, name, isVisible, obj) {
+      obj.position.x = x;
+      obj.position.y = y;
+      obj.position.z = z;
+      obj.name = name;
+      obj.visible = isVisible;
+
+      scene.add(obj);
+      textObjs.push(obj);
+    }
+    function createMaterial() {
+      const material = new THREE.MeshPhongMaterial({
+        side: THREE.DoubleSide,
+      });
+
+      const hue = Math.random();
+      const saturation = 1;
+      const luminance = 0.5;
+      material.color.setHSL(hue, saturation, luminance);
+
+      return material;
+    }
+    function addSolidGeometry(x, y, z, name, isVisible, geometry) {
+      const mesh = new THREE.Mesh(geometry, createMaterial());
+      addObject(x, y, z, name, isVisible, mesh);
+    }
+    const loader = new FontLoader();
+    // promisify font loading
+    function loadFont(url) {
+      return new Promise((resolve, reject) => {
+        loader.load(url, resolve, undefined, reject);
+      });
+    }
+
+    async function doit() {
+      const font = await loadFont(
+        "https://threejs.org/examples/fonts/gentilis_regular.typeface.json"
+      );
+      const colorsTextGeometry = new TextGeometry("Fill The Colors!", {
+        font: font,
+        size: 2.0,
+        height: 0.2,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.15,
+        bevelSize: 0.3,
+        bevelSegments: 5,
+      });
+
+      addSolidGeometry(
+        -3,
+        30,
+        -20,
+        "Fill The Colors!",
+        true,
+        colorsTextGeometry
+      );
+
+      const filledColorsGeometry = new TextGeometry("Great job King", {
+        font: font,
+        size: 2.0,
+        height: 0.2,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.15,
+        bevelSize: 0.3,
+        bevelSegments: 5,
+      });
+
+      addSolidGeometry(
+        -3,
+        30,
+        -20,
+        "Great job King",
+        false,
+        filledColorsGeometry
+      );
+
+      const guyTextGeometry = new TextGeometry("Click Me!", {
+        font: font,
+        size: 2.0,
+        height: 0.2,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.15,
+        bevelSize: 0.3,
+        bevelSegments: 5,
+      });
+
+      addSolidGeometry(-35, 20, -30, "Click Me!", true, guyTextGeometry);
+    }
+    doit();
+  }
+
   // renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -309,8 +412,22 @@ function animate() {
 
       if (color.equals(white)) {
         mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff));
+        colorsFilled += 1;
         mesh.instanceColor.needsUpdate = true;
       }
+    }
+
+    // check if shapes have been filled
+    if (colorsFilled === objCount * 3 && !isColorsFilled) {
+      textObjs.forEach((obj) => {
+        if (obj.name === "Fill The Colors!") {
+          obj.visible = false;
+        }
+        if (obj.name === "Great job King") {
+          obj.visible = true;
+        }
+      });
+      isColorsFilled = true;
     }
 
     // causally move shapes
