@@ -18,6 +18,7 @@ let camera, scene, renderer, controls;
 
 const objects = [];
 const textObjs = [];
+const boids = [];
 
 let raycaster = new THREE.Raycaster();
 
@@ -25,7 +26,6 @@ let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
-let canJump = false;
 let stats;
 const objCount = 10;
 let colorsFilled = 0;
@@ -41,53 +41,40 @@ let spotLightHelper;
 let prevTime = performance.now();
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
-const vertex = new THREE.Vector3();
 const color = new THREE.Color();
 const white = new THREE.Color().setHex(0xffffff);
 
 init();
 animate();
 
-function makeIcosahedron() {
-  const Geometry = new THREE.IcosahedronGeometry(1);
+function makeBoids() {
+  const Geometry = new THREE.ConeGeometry(1, 3.9, 12);
   const Material = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  const Count = objCount;
-  const Mesh = new THREE.InstancedMesh(Geometry, Material, Count);
-  const Offset = Count * 2.5;
+  const edgeAmount = 10;
+  const totalAmount = Math.pow(edgeAmount, 3);
+  const Mesh = new THREE.InstancedMesh(Geometry, Material, totalAmount);
+  const XSpacing = 5;
+  const XOffset = 35;
+  const YSpacing = 4;
+  const YOffset = 1;
+  const ZSpacing = 4;
+  const ZOffset = -20;
   const matrix = new THREE.Matrix4();
-  for (let i = 0; i < Count; i++) {
-    matrix.setPosition(0, Offset - i * 2.5, -20);
-    Mesh.setMatrixAt(i, matrix);
-    Mesh.setColorAt(i, new THREE.Color().setHex(0xffffff));
-  }
-  return Mesh;
-}
-
-function makeCubes() {
-  const Geometry = new THREE.BoxGeometry(1.8, 1.8, 1.8);
-  const Material = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  const Count = objCount;
-  const Mesh = new THREE.InstancedMesh(Geometry, Material, Count);
-  const Offset = Count * 2.5;
-  const matrix = new THREE.Matrix4();
-  for (let i = 0; i < Count; i++) {
-    matrix.setPosition(5, Offset - i * 2.5, -20);
-    Mesh.setMatrixAt(i, matrix);
-    Mesh.setColorAt(i, new THREE.Color().setHex(0xffffff));
-  }
-  return Mesh;
-}
-function makeCylinders() {
-  const Geometry = new THREE.CylinderGeometry(1.3, 1.3, 1, 12);
-  const Material = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  const Count = objCount;
-  const Mesh = new THREE.InstancedMesh(Geometry, Material, Count);
-  const Offset = Count * 2.5;
-  const matrix = new THREE.Matrix4();
-  for (let i = 0; i < Count; i++) {
-    matrix.setPosition(10, Offset - i * 2.5, -20);
-    Mesh.setMatrixAt(i, matrix);
-    Mesh.setColorAt(i, new THREE.Color().setHex(0xffffff));
+  let matIdx = 0;
+  for (let i = 0; i < edgeAmount; i++) {
+    for (let j = 0; j < edgeAmount; j++) {
+      for (let k = 0; k < edgeAmount; k++) {
+        matrix.makeRotationX(-Math.PI / 2);
+        matrix.setPosition(
+          j * XSpacing + XOffset,
+          i * YSpacing + YOffset,
+          k * ZSpacing + ZOffset
+        );
+        Mesh.setMatrixAt(matIdx, matrix);
+        Mesh.setColorAt(matIdx, new THREE.Color().setHex(0xffffff));
+        matIdx++;
+      }
+    }
   }
   return Mesh;
 }
@@ -99,9 +86,9 @@ function init() {
     1,
     1000
   );
-  camera.position.x = -16;
+  camera.position.x = 60;
   camera.position.y = 15;
-  camera.position.z = 8;
+  camera.position.z = 70;
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
@@ -141,22 +128,6 @@ function init() {
   });
 
   scene.add(controls.getObject());
-
-  // load the guy
-  {
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.load(
-      "https://threejs.org/manual/examples/resources/models/knight/KnightCharacter.gltf",
-      (gltf) => {
-        const root = gltf.scene;
-        root.translateY(10);
-        root.translateZ(-30);
-        root.translateX(-30);
-        theGuy = root;
-        scene.add(theGuy);
-      }
-    );
-  }
 
   const onKeyDown = function (event) {
     switch (event.code) {
@@ -238,164 +209,9 @@ function init() {
   scene.add(floorMesh);
 
   // basic scene
-  let spheresMesh = makeIcosahedron();
-  objects.push(spheresMesh);
-  scene.add(spheresMesh);
-
-  let cubesMesh = makeCubes();
-  objects.push(cubesMesh);
-  scene.add(cubesMesh);
-
-  let cylindersMesh = makeCylinders();
-  objects.push(cylindersMesh);
-  scene.add(cylindersMesh);
-
-  // add spotlight to basic scene
-  const lightSourceGeo = new THREE.BoxGeometry(1, 2, 1);
-  const lightSourceMat = new THREE.MeshPhongMaterial({ emissive: 0xffff00 });
-  const lightSourceMesh = new THREE.Mesh(lightSourceGeo, lightSourceMat);
-  lightSourceMesh.position.set(5, 35, -20);
-  const spotLight = new THREE.SpotLight(0xffffff, 1);
-  spotLight.target.position.set(5, 0, -20);
-  spotLight.angle = Math.PI / 6;
-  lightSourceMesh.add(spotLight);
-  scene.add(lightSourceMesh);
-  scene.add(spotLight.target);
-  //   spotLightHelper = new THREE.SpotLightHelper(spotLight);
-  //   scene.add(spotLightHelper);
-
-  // add pointLight that guy will give you
-  const pointLightGeo = new THREE.SphereGeometry(0.5, 8, 8);
-  const pointLightMat = new THREE.MeshPhongMaterial({ emissive: 0xffff00 });
-  pointLightMesh = new THREE.Mesh(pointLightGeo, pointLightMat);
-  pointLightMesh.position.set(-30, 13, -28);
-  pointLight = new THREE.PointLight(0xffffff, 1);
-  pointLight.angle = Math.PI / 6;
-  pointLightMesh.add(pointLight);
-  pointLightMesh.visible = false;
-  pointLight.intensity = 0;
-  scene.add(pointLightMesh);
-  //   spotLightHelper = new THREE.SpotLightHelper(spotLight);
-  //   scene.add(spotLightHelper);
-
-  // load the text
-  {
-    function addObject(x, y, z, name, isVisible, obj) {
-      obj.position.x = x;
-      obj.position.y = y;
-      obj.position.z = z;
-      obj.name = name;
-      obj.visible = isVisible;
-
-      scene.add(obj);
-      textObjs.push(obj);
-    }
-    function createMaterial() {
-      const material = new THREE.MeshPhongMaterial({
-        side: THREE.DoubleSide,
-      });
-
-      const hue = Math.random();
-      const saturation = 1;
-      const luminance = 0.5;
-      material.color.setHSL(hue, saturation, luminance);
-
-      return material;
-    }
-    function addSolidGeometry(x, y, z, name, isVisible, geometry) {
-      const mesh = new THREE.Mesh(geometry, createMaterial());
-      addObject(x, y, z, name, isVisible, mesh);
-    }
-    const loader = new FontLoader();
-    // promisify font loading
-    function loadFont(url) {
-      return new Promise((resolve, reject) => {
-        loader.load(url, resolve, undefined, reject);
-      });
-    }
-
-    async function doit() {
-      const font = await loadFont(
-        "https://threejs.org/examples/fonts/gentilis_regular.typeface.json"
-      );
-      const colorsTextGeometry = new TextGeometry("Fill The Colors!", {
-        font: font,
-        size: 2.0,
-        height: 0.2,
-        curveSegments: 12,
-        bevelEnabled: true,
-        bevelThickness: 0.15,
-        bevelSize: 0.3,
-        bevelSegments: 5,
-      });
-
-      addSolidGeometry(
-        -3,
-        30,
-        -20,
-        "Fill The Colors!",
-        true,
-        colorsTextGeometry
-      );
-
-      const filledColorsGeometry = new TextGeometry("Great job King", {
-        font: font,
-        size: 2.0,
-        height: 0.2,
-        curveSegments: 12,
-        bevelEnabled: true,
-        bevelThickness: 0.15,
-        bevelSize: 0.3,
-        bevelSegments: 5,
-      });
-
-      addSolidGeometry(
-        -3,
-        30,
-        -20,
-        "Great job King",
-        false,
-        filledColorsGeometry
-      );
-
-      const guyTextGeometry = new TextGeometry("Click Me!", {
-        font: font,
-        size: 2.0,
-        height: 0.2,
-        curveSegments: 12,
-        bevelEnabled: true,
-        bevelThickness: 0.15,
-        bevelSize: 0.3,
-        bevelSegments: 5,
-      });
-
-      addSolidGeometry(-35, 20, -30, "Click Me!", true, guyTextGeometry);
-
-      const guyTextLightOnGeometry = new TextGeometry(
-        "Hello, I have a point light for you",
-        {
-          font: font,
-          size: 2.0,
-          height: 0.2,
-          curveSegments: 12,
-          bevelEnabled: true,
-          bevelThickness: 0.15,
-          bevelSize: 0.3,
-          bevelSegments: 5,
-        }
-      );
-
-      addSolidGeometry(
-        -45,
-        20,
-        -30,
-        "Hello, I have a point light for you",
-        false,
-        guyTextLightOnGeometry
-      );
-    }
-    doit();
-  }
+  let boidsMesh = makeBoids();
+  boids.push(boidsMesh);
+  scene.add(boidsMesh);
 
   // renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -443,78 +259,78 @@ function animate() {
     controls.moveForward(-velocity.z * delta);
 
     // raycaster stuff
-    let mouse3D = new THREE.Vector3();
-    mouse3D.normalize();
-    controls.getDirection(mouse3D);
+    // let mouse3D = new THREE.Vector3();
+    // mouse3D.normalize();
+    // controls.getDirection(mouse3D);
 
-    raycaster.set(camera.position, mouse3D);
+    // raycaster.set(camera.position, mouse3D);
 
-    const intersections = raycaster.intersectObjects(objects);
-    if (intersections.length > 0) {
-      const closest = intersections.reduce((prev, curr) => {
-        return prev.distance < curr.distance ? prev : curr;
-      });
+    // const intersections = raycaster.intersectObjects(objects);
+    // if (intersections.length > 0) {
+    //   const closest = intersections.reduce((prev, curr) => {
+    //     return prev.distance < curr.distance ? prev : curr;
+    //   });
 
-      const instanceId = closest.instanceId;
-      const mesh = closest.object;
+    //   const instanceId = closest.instanceId;
+    //   const mesh = closest.object;
 
-      mesh.getColorAt(instanceId, color);
+    //   mesh.getColorAt(instanceId, color);
 
-      if (color.equals(white)) {
-        mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff));
-        colorsFilled += 1;
-        mesh.instanceColor.needsUpdate = true;
-      }
-    }
+    //   if (color.equals(white)) {
+    //     mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff));
+    //     colorsFilled += 1;
+    //     mesh.instanceColor.needsUpdate = true;
+    //   }
+    // }
 
-    // check the guy have the mouseDown on him
-    if (isMouseDown) {
-      const intersected = raycaster.intersectObject(theGuy);
-      if (intersected.length > 0) {
-        textObjs.forEach((obj) => {
-          if (obj.name === "Click Me!") {
-            obj.visible = false;
-          }
-          if (obj.name === "Hello, I have a point light for you") {
-            obj.visible = true;
-          }
-        });
-        pointLightMesh.visible = true;
-        pointLight.intensity = 1;
-      }
-      console.log(intersected);
-    }
+    // // check the guy have the mouseDown on him
+    // if (isMouseDown) {
+    //   const intersected = raycaster.intersectObject(theGuy);
+    //   if (intersected.length > 0) {
+    //     textObjs.forEach((obj) => {
+    //       if (obj.name === "Click Me!") {
+    //         obj.visible = false;
+    //       }
+    //       if (obj.name === "Hello, I have a point light for you") {
+    //         obj.visible = true;
+    //       }
+    //     });
+    //     pointLightMesh.visible = true;
+    //     pointLight.intensity = 1;
+    //   }
+    //   console.log(intersected);
+    // }
 
-    // check if shapes have been filled
-    if (colorsFilled === objCount * 3 && !isColorsFilled) {
-      textObjs.forEach((obj) => {
-        if (obj.name === "Fill The Colors!") {
-          obj.visible = false;
-        }
-        if (obj.name === "Great job King") {
-          obj.visible = true;
-        }
-      });
-      isColorsFilled = true;
-    }
+    // // check if shapes have been filled
+    // if (colorsFilled === objCount * 3 && !isColorsFilled) {
+    //   textObjs.forEach((obj) => {
+    //     if (obj.name === "Fill The Colors!") {
+    //       obj.visible = false;
+    //     }
+    //     if (obj.name === "Great job King") {
+    //       obj.visible = true;
+    //     }
+    //   });
+    //   isColorsFilled = true;
+    // }
 
-    // causally move shapes
-    const clock = Date.now() * 0.001;
-    const dummy = new THREE.Object3D();
-    const offset = objCount * 2.5;
-    objects.forEach((obj, idx) => {
-      for (let i = 0; i < objCount; i++) {
-        dummy.position.set(idx * 5, offset - i * 2.5, -20);
-        dummy.rotation.y =
-          Math.sin(i / 4 + clock) +
-          Math.sin(i / 4 + clock) +
-          Math.sin(i / 4 + clock);
-        dummy.rotation.z = dummy.rotation.y * 2;
-        dummy.updateMatrix();
-        obj.setMatrixAt(i, dummy.matrix);
-      }
-      obj.instanceMatrix.needsUpdate = true;
-    });
+    // // causally move shapes
+    // const clock = Date.now() * 0.001;
+    // const dummy = new THREE.Object3D();
+    // const offset = objCount * 2.5;
+    // objects.forEach((obj, idx) => {
+    //   for (let i = 0; i < objCount; i++) {
+    //     dummy.position.set(idx * 5, offset - i * 2.5, -20);
+    //     dummy.rotation.y =
+    //       Math.sin(i / 4 + clock) +
+    //       Math.sin(i / 4 + clock) +
+    //       Math.sin(i / 4 + clock);
+    //     dummy.rotation.z = dummy.rotation.y * 2;
+    //     dummy.updateMatrix();
+    //     obj.setMatrixAt(i, dummy.matrix);
+    //   }
+    //   obj.instanceMatrix.needsUpdate = true;
+    // });
   }
   //   spotLightHelper.update();
   prevTime = time;
