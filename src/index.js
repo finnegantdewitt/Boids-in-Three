@@ -14,7 +14,8 @@ let camera, scene, renderer, controls;
 
 const objects = [];
 const textObjs = [];
-const boids = [];
+let boids;
+const edgeAmount = 10;
 
 let raycaster = new THREE.Raycaster();
 
@@ -49,7 +50,6 @@ animate();
 function makeBoids() {
   const Geometry = new THREE.ConeGeometry(1, 3.9, 12);
   const Material = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  const edgeAmount = 10;
   const totalAmount = Math.pow(edgeAmount, 3);
   const Mesh = new THREE.InstancedMesh(Geometry, Material, totalAmount);
   const XSpacing = 5;
@@ -223,7 +223,7 @@ function init() {
 
   // basic scene
   let boidsMesh = makeBoids();
-  boids.push(boidsMesh);
+  boids = boidsMesh;
   scene.add(boidsMesh);
 
   // renderer
@@ -338,20 +338,50 @@ function animate() {
     // causally move shapes
     const clock = Date.now() * 0.001;
     const dummy = new THREE.Object3D();
-    const offset = objCount * 2.5;
-    objects.forEach((obj, idx) => {
-      for (let i = 0; i < objCount; i++) {
-        dummy.position.set(idx * 5, offset - i * 2.5, -20);
-        dummy.rotation.y =
-          Math.sin(i / 4 + clock) +
-          Math.sin(i / 4 + clock) +
-          Math.sin(i / 4 + clock);
-        dummy.rotation.z = dummy.rotation.y * 2;
-        dummy.updateMatrix();
-        obj.setMatrixAt(i, dummy.matrix);
+    const XSpacing = 5;
+    const XOffset = 35;
+    const YSpacing = 4;
+    const YOffset = 1;
+    const ZSpacing = 4;
+    const ZOffset = -20;
+    let matrix = new THREE.Matrix4();
+    let matrix1 = new THREE.Matrix4();
+    let matIdx = 0;
+    for (let i = 0; i < edgeAmount; i++) {
+      for (let j = 0; j < edgeAmount; j++) {
+        for (let k = 0; k < edgeAmount; k++) {
+          // console.log(matrix);
+          boids.getMatrixAt(matIdx, matrix);
+          matrix.makeRotationY = Math.sin(i / 4 + clock);
+          boids.setMatrixAt(matIdx, matrix);
+          // matrix.makeRotationX(-Math.PI / 2);
+          // matrix.setPosition(
+          //   j * XSpacing + XOffset,
+          //   i * YSpacing + YOffset,
+          //   k * ZSpacing + ZOffset
+          // );
+          // Mesh.setMatrixAt(matIdx, matrix);
+          // Mesh.setColorAt(matIdx, new THREE.Color().setHex(0xffffff));
+          matIdx++;
+        }
       }
-      obj.instanceMatrix.needsUpdate = true;
-    });
+    }
+    boids.instanceMatrix.needsUpdate = true;
+
+    // const offset = objCount * 2.5;
+    // objects.forEach((obj, idx) => {
+    //   for (let i = 0; i < objCount; i++) {
+    //     dummy.position.set(idx * 5, offset - i * 2.5, -20);
+    //     dummy.rotation.y =
+    //       Math.sin(i / 4 + clock) +
+    //       Math.sin(i / 4 + clock) +
+    //       Math.sin(i / 4 + clock);
+    //     dummy.rotation.z = dummy.rotation.y * 2;
+    //     dummy.updateMatrix();
+    //     obj.setMatrixAt(i, dummy.matrix);
+    //   }
+    //   obj.instanceMatrix.needsUpdate = true;
+    // });
   }
   //   spotLightHelper.update();
   prevTime = time;
