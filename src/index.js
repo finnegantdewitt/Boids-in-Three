@@ -9,10 +9,6 @@ import skybox_right from "./img/sky/skybox_right.png";
 import skybox_up from "./img/sky/skybox_up.png";
 import GUI from "lil-gui";
 import Stats from "three/examples/jsm/libs/stats.module";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { FontLoader } from "three/examples/jsm/loaders/FontLoader";
-import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry";
-// import AsterFireTitleScreen from "./Arcade_Cabinet_Obj/AsterFire Title screen.png";
 
 let camera, scene, renderer, controls;
 
@@ -22,10 +18,13 @@ const boids = [];
 
 let raycaster = new THREE.Raycaster();
 
+const groundLevel = 10;
 let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
+let moveUp = false;
+let moveDown = false;
 let stats;
 const objCount = 10;
 let colorsFilled = 0;
@@ -87,7 +86,7 @@ function init() {
     1000
   );
   camera.position.x = 60;
-  camera.position.y = 15;
+  camera.position.y = groundLevel;
   camera.position.z = 70;
 
   scene = new THREE.Scene();
@@ -147,6 +146,13 @@ function init() {
       case "KeyD":
         moveRight = true;
         break;
+      case "KeyE":
+        moveUp = true;
+        break;
+      case "ArrowRight":
+      case "KeyQ":
+        moveDown = true;
+        break;
     }
   };
   const onKeyUp = function (event) {
@@ -166,6 +172,13 @@ function init() {
       case "ArrowRight":
       case "KeyD":
         moveRight = false;
+        break;
+      case "KeyE":
+        moveUp = false;
+        break;
+      case "ArrowRight":
+      case "KeyQ":
+        moveDown = false;
         break;
     }
   };
@@ -242,11 +255,11 @@ function animate() {
 
     velocity.x -= velocity.x * 5.0 * delta;
     velocity.z -= velocity.z * 5.0 * delta;
-
-    velocity.y -= 9.8 * 100.0 * delta;
+    velocity.y -= velocity.y * 5.0 * delta;
 
     direction.z = Number(moveForward) - Number(moveBackward);
     direction.x = Number(moveRight) - Number(moveLeft);
+    direction.y = Number(moveDown) - Number(moveUp);
     direction.normalize();
 
     if (moveForward || moveBackward) {
@@ -255,6 +268,14 @@ function animate() {
     if (moveLeft || moveRight) {
       velocity.x -= direction.x * 400.0 * delta;
     }
+    if (moveUp || moveDown) {
+      velocity.y -= direction.y * 400.0 * delta;
+    }
+    if (controls.getObject().position.y < groundLevel) {
+      controls.getObject().position.y = groundLevel;
+      velocity.y = 0;
+    }
+    controls.getObject().position.y += velocity.y * delta;
     controls.moveRight(-velocity.x * delta);
     controls.moveForward(-velocity.z * delta);
 
@@ -314,23 +335,23 @@ function animate() {
     //   isColorsFilled = true;
     // }
 
-    // // causally move shapes
-    // const clock = Date.now() * 0.001;
-    // const dummy = new THREE.Object3D();
-    // const offset = objCount * 2.5;
-    // objects.forEach((obj, idx) => {
-    //   for (let i = 0; i < objCount; i++) {
-    //     dummy.position.set(idx * 5, offset - i * 2.5, -20);
-    //     dummy.rotation.y =
-    //       Math.sin(i / 4 + clock) +
-    //       Math.sin(i / 4 + clock) +
-    //       Math.sin(i / 4 + clock);
-    //     dummy.rotation.z = dummy.rotation.y * 2;
-    //     dummy.updateMatrix();
-    //     obj.setMatrixAt(i, dummy.matrix);
-    //   }
-    //   obj.instanceMatrix.needsUpdate = true;
-    // });
+    // causally move shapes
+    const clock = Date.now() * 0.001;
+    const dummy = new THREE.Object3D();
+    const offset = objCount * 2.5;
+    objects.forEach((obj, idx) => {
+      for (let i = 0; i < objCount; i++) {
+        dummy.position.set(idx * 5, offset - i * 2.5, -20);
+        dummy.rotation.y =
+          Math.sin(i / 4 + clock) +
+          Math.sin(i / 4 + clock) +
+          Math.sin(i / 4 + clock);
+        dummy.rotation.z = dummy.rotation.y * 2;
+        dummy.updateMatrix();
+        obj.setMatrixAt(i, dummy.matrix);
+      }
+      obj.instanceMatrix.needsUpdate = true;
+    });
   }
   //   spotLightHelper.update();
   prevTime = time;
