@@ -10,48 +10,11 @@ import skybox_up from "./img/sky/skybox_up.png";
 import GUI from "lil-gui";
 import Stats from "three/examples/jsm/libs/stats.module";
 
-class Boid {
-  constructor(mesh) {
-    this.mesh = mesh;
-    this.meshHelper = new THREE.BoxHelper(mesh, 0xffff00);
-    this.velocity = new THREE.Vector3();
-    this.direction = new THREE.Vector3();
-    this.lookAt = new THREE.Vector3();
-    this.direction.set(Math.random(), Math.random(), Math.random());
-    this.direction.normalize();
-    // this.velocity.set(Math.random(), Math.random(), Math.random());
-    this.velocity.set(0, Math.random(), 0);
-    // this.velocity.set(1, 0, 1);
-  }
-  move() {
-    if (this.mesh.position.x > 100 || this.mesh.position.x < -100) {
-      this.velocity.x = -this.velocity.x;
-    }
-    if (this.mesh.position.y > 100 || this.mesh.position.y < 1) {
-      this.velocity.y = -this.velocity.y;
-    }
-    if (this.mesh.position.z > 100 || this.mesh.position.z < -100) {
-      this.velocity.z = -this.velocity.z;
-    }
-    // let moveTo = -this.velocity * this.direction;
-    this.mesh.lookAt(this.lookAt.addVectors(this.mesh.position, this.velocity));
-    // this.lookAt.addVectors(this.mesh.position, this.velocity);
-    // this.lookAt.applyAxisAngle(this.lookAt, Math.PI / 2);
-    // this.mesh.position.x += -this.velocity.x * this.direction.x;
-    // this.mesh.position.y += -this.velocity.y * this.direction.y;
-    // this.mesh.position.z += -this.velocity.z * this.direction.z;
-    this.mesh.position.x += -this.velocity.x;
-    this.mesh.position.y += -this.velocity.y;
-    this.mesh.position.z += -this.velocity.z;
-    this.meshHelper.update();
-  }
-}
-
 let camera, scene, renderer, controls;
 
 const objects = [];
 const textObjs = [];
-const boids = [];
+let boids;
 const edgeAmount = 10;
 
 let raycaster = new THREE.Raycaster();
@@ -73,6 +36,8 @@ let isMouseDown = false;
 let prevTime = performance.now();
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
+const color = new THREE.Color();
+const white = new THREE.Color().setHex(0xffffff);
 
 init();
 animate();
@@ -107,29 +72,6 @@ function makeBoids() {
   }
   Mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   return Mesh;
-}
-
-function makeIndividualBoids() {
-  const boidGeo = new THREE.ConeGeometry(1, 3.9, 12);
-  const boidMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  const XSpacing = 5;
-  const XOffset = 35;
-  const YSpacing = 4;
-  const YOffset = 2;
-  const ZSpacing = 4;
-  const ZOffset = -20;
-  for (let i = 0; i < edgeAmount; i++) {
-    for (let j = 0; j < edgeAmount; j++) {
-      for (let k = 0; k < edgeAmount; k++) {
-        const boidMesh = new THREE.Mesh(boidGeo, boidMat);
-        boidMesh.translateX(j * XSpacing + XOffset);
-        boidMesh.translateY(i * YSpacing + YOffset);
-        boidMesh.translateZ(k * ZSpacing + ZOffset);
-        const newBoid = new Boid(boidMesh);
-        boids.push(newBoid);
-      }
-    }
-  }
 }
 
 function init() {
@@ -276,26 +218,9 @@ function init() {
   scene.add(floorMesh);
 
   // basic scene
-  makeIndividualBoids();
-  for (let i = 0; i < boids.length; i++) {
-    scene.add(boids[i].mesh);
-    scene.add(boids[i].meshHelper);
-  }
-
-  // add wire box for boids
-  const boidBoxMesh = new THREE.LineSegments(
-    box(200, 100, 200),
-    new THREE.LineBasicMaterial({
-      color: 0xffffff,
-      linewidth: 1,
-      scale: 1,
-      dashSize: 3,
-      gapSize: 1,
-    })
-  );
-  boidBoxMesh.computeLineDistances();
-  boidBoxMesh.translateY(50);
-  scene.add(boidBoxMesh);
+  let boidsMesh = makeBoids();
+  boids = boidsMesh;
+  scene.add(boidsMesh);
 
   // renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -349,111 +274,121 @@ function animate() {
     controls.getObject().position.y += velocity.y * delta;
     controls.moveRight(-velocity.x * delta);
     controls.moveForward(-velocity.z * delta);
-    for (let i = 0; i < boids.length; i++) {
-      boids[i].move();
+
+    // raycaster stuff
+    // let mouse3D = new THREE.Vector3();
+    // mouse3D.normalize();
+    // controls.getDirection(mouse3D);
+
+    // raycaster.set(camera.position, mouse3D);
+
+    // const intersections = raycaster.intersectObjects(objects);
+    // if (intersections.length > 0) {
+    //   const closest = intersections.reduce((prev, curr) => {
+    //     return prev.distance < curr.distance ? prev : curr;
+    //   });
+
+    //   const instanceId = closest.instanceId;
+    //   const mesh = closest.object;
+
+    //   mesh.getColorAt(instanceId, color);
+
+    //   if (color.equals(white)) {
+    //     mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff));
+    //     colorsFilled += 1;
+    //     mesh.instanceColor.needsUpdate = true;
+    //   }
+    // }
+
+    // // check the guy have the mouseDown on him
+    // if (isMouseDown) {
+    //   const intersected = raycaster.intersectObject(theGuy);
+    //   if (intersected.length > 0) {
+    //     textObjs.forEach((obj) => {
+    //       if (obj.name === "Click Me!") {
+    //         obj.visible = false;
+    //       }
+    //       if (obj.name === "Hello, I have a point light for you") {
+    //         obj.visible = true;
+    //       }
+    //     });
+    //     pointLightMesh.visible = true;
+    //     pointLight.intensity = 1;
+    //   }
+    //   console.log(intersected);
+    // }
+
+    // // check if shapes have been filled
+    // if (colorsFilled === objCount * 3 && !isColorsFilled) {
+    //   textObjs.forEach((obj) => {
+    //     if (obj.name === "Fill The Colors!") {
+    //       obj.visible = false;
+    //     }
+    //     if (obj.name === "Great job King") {
+    //       obj.visible = true;
+    //     }
+    //   });
+    //   isColorsFilled = true;
+    // }
+
+    // causally move shapes
+    const clock = Date.now() * 0.001;
+    const dummy = new THREE.Object3D();
+    const XSpacing = 5;
+    const XOffset = 35;
+    const YSpacing = 4;
+    const YOffset = 1;
+    const ZSpacing = 4;
+    const ZOffset = -20;
+    let matrix = new THREE.Matrix4();
+    let matrix1 = new THREE.Matrix4();
+    let _position = new THREE.Vector3();
+    let _quaternion = new THREE.Quaternion(); //https://eater.net/quaternions/video/intro
+    let _scale = new THREE.Vector3();
+    let matIdx = 0;
+    for (let i = 0; i < edgeAmount; i++) {
+      for (let j = 0; j < edgeAmount; j++) {
+        for (let k = 0; k < edgeAmount; k++) {
+          // console.log(matrix);
+          boids.getMatrixAt(matIdx, matrix);
+          matrix.decompose(_position, _quaternion, _scale);
+          _position.x += Math.round(Math.random() * 1);
+          _position.z += Math.round(Math.random() * 1);
+          // matrix.makeTranslation()
+          // matrix.makeRotationY = Math.sin(i / 4 + clock);
+          matrix.compose(_position, _quaternion, _scale);
+          boids.setMatrixAt(matIdx, matrix);
+          // matrix.makeRotationX(-Math.PI / 2);
+          // matrix.setPosition(
+          //   j * XSpacing + XOffset,
+          //   i * YSpacing + YOffset,
+          //   k * ZSpacing + ZOffset
+          // );
+          // Mesh.setMatrixAt(matIdx, matrix);
+          // Mesh.setColorAt(matIdx, new THREE.Color().setHex(0xffffff));
+          matIdx++;
+        }
+      }
     }
+    boids.instanceMatrix.needsUpdate = true;
+
+    // const offset = objCount * 2.5;
+    // objects.forEach((obj, idx) => {
+    //   for (let i = 0; i < objCount; i++) {
+    //     dummy.position.set(idx * 5, offset - i * 2.5, -20);
+    //     dummy.rotation.y =
+    //       Math.sin(i / 4 + clock) +
+    //       Math.sin(i / 4 + clock) +
+    //       Math.sin(i / 4 + clock);
+    //     dummy.rotation.z = dummy.rotation.y * 2;
+    //     dummy.updateMatrix();
+    //     obj.setMatrixAt(i, dummy.matrix);
+    //   }
+    //   obj.instanceMatrix.needsUpdate = true;
+    // });
   }
+  //   spotLightHelper.update();
   prevTime = time;
   renderer.render(scene, camera);
   stats.update();
-}
-
-function box(width, height, depth) {
-  (width = width * 0.5), (height = height * 0.5), (depth = depth * 0.5);
-
-  const geometry = new THREE.BufferGeometry();
-  const position = [];
-
-  position.push(
-    -width,
-    -height,
-    -depth,
-    -width,
-    height,
-    -depth,
-
-    -width,
-    height,
-    -depth,
-    width,
-    height,
-    -depth,
-
-    width,
-    height,
-    -depth,
-    width,
-    -height,
-    -depth,
-
-    width,
-    -height,
-    -depth,
-    -width,
-    -height,
-    -depth,
-
-    -width,
-    -height,
-    depth,
-    -width,
-    height,
-    depth,
-
-    -width,
-    height,
-    depth,
-    width,
-    height,
-    depth,
-
-    width,
-    height,
-    depth,
-    width,
-    -height,
-    depth,
-
-    width,
-    -height,
-    depth,
-    -width,
-    -height,
-    depth,
-
-    -width,
-    -height,
-    -depth,
-    -width,
-    -height,
-    depth,
-
-    -width,
-    height,
-    -depth,
-    -width,
-    height,
-    depth,
-
-    width,
-    height,
-    -depth,
-    width,
-    height,
-    depth,
-
-    width,
-    -height,
-    -depth,
-    width,
-    -height,
-    depth
-  );
-
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(position, 3)
-  );
-
-  return geometry;
 }
