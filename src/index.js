@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHelper";
 import arcade_carpet from "./img/arcade_carpet.png";
 import skybox_back from "./img/sky/skybox_back.png";
 import skybox_down from "./img/sky/skybox_down.png";
@@ -17,11 +18,7 @@ class Boid {
     this.velocity = new THREE.Vector3();
     this.direction = new THREE.Vector3();
     this.lookAt = new THREE.Vector3();
-    this.direction.set(Math.random(), Math.random(), Math.random());
-    this.direction.normalize();
-    // this.velocity.set(Math.random(), Math.random(), Math.random());
-    this.velocity.set(0, Math.random(), 0);
-    // this.velocity.set(1, 0, 1);
+    this.velocity.set(Math.random(), Math.random(), Math.random()).normalize();
   }
   move() {
     if (this.mesh.position.x > 100 || this.mesh.position.x < -100) {
@@ -33,13 +30,13 @@ class Boid {
     if (this.mesh.position.z > 100 || this.mesh.position.z < -100) {
       this.velocity.z = -this.velocity.z;
     }
-    // let moveTo = -this.velocity * this.direction;
-    this.mesh.lookAt(this.lookAt.addVectors(this.mesh.position, this.velocity));
-    // this.lookAt.addVectors(this.mesh.position, this.velocity);
-    // this.lookAt.applyAxisAngle(this.lookAt, Math.PI / 2);
-    // this.mesh.position.x += -this.velocity.x * this.direction.x;
-    // this.mesh.position.y += -this.velocity.y * this.direction.y;
-    // this.mesh.position.z += -this.velocity.z * this.direction.z;
+
+    let targetVec = new THREE.Vector3().subVectors(
+      this.mesh.position,
+      this.velocity
+    );
+    this.mesh.lookAt(targetVec);
+
     this.mesh.position.x += -this.velocity.x;
     this.mesh.position.y += -this.velocity.y;
     this.mesh.position.z += -this.velocity.z;
@@ -52,7 +49,7 @@ let camera, scene, renderer, controls;
 const objects = [];
 const textObjs = [];
 const boids = [];
-const edgeAmount = 10;
+const edgeAmount = 3;
 
 let raycaster = new THREE.Raycaster();
 
@@ -77,40 +74,9 @@ const direction = new THREE.Vector3();
 init();
 animate();
 
-function makeBoids() {
-  const Geometry = new THREE.ConeGeometry(1, 3.9, 12);
-  const Material = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  const totalAmount = Math.pow(edgeAmount, 3);
-  const Mesh = new THREE.InstancedMesh(Geometry, Material, totalAmount);
-  const XSpacing = 5;
-  const XOffset = 35;
-  const YSpacing = 4;
-  const YOffset = 1;
-  const ZSpacing = 4;
-  const ZOffset = -20;
-  const matrix = new THREE.Matrix4();
-  let matIdx = 0;
-  for (let i = 0; i < edgeAmount; i++) {
-    for (let j = 0; j < edgeAmount; j++) {
-      for (let k = 0; k < edgeAmount; k++) {
-        matrix.makeRotationX(-Math.PI / 2);
-        matrix.setPosition(
-          j * XSpacing + XOffset,
-          i * YSpacing + YOffset,
-          k * ZSpacing + ZOffset
-        );
-        Mesh.setMatrixAt(matIdx, matrix);
-        Mesh.setColorAt(matIdx, new THREE.Color().setHex(0xffffff));
-        matIdx++;
-      }
-    }
-  }
-  Mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  return Mesh;
-}
-
 function makeIndividualBoids() {
   const boidGeo = new THREE.ConeGeometry(1, 3.9, 12);
+  boidGeo.rotateX(Math.PI * 0.5);
   const boidMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
   const XSpacing = 5;
   const XOffset = 35;
@@ -279,7 +245,8 @@ function init() {
   makeIndividualBoids();
   for (let i = 0; i < boids.length; i++) {
     scene.add(boids[i].mesh);
-    scene.add(boids[i].meshHelper);
+    // scene.add(boids[i].meshHelper);
+    // scene.add(boids[i].meshVertexNormalHelper);
   }
 
   // add wire box for boids
