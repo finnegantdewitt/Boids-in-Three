@@ -10,11 +10,23 @@ import skybox_right from "./img/sky/skybox_right.png";
 import skybox_up from "./img/sky/skybox_up.png";
 import GUI from "lil-gui";
 import Stats from "three/examples/jsm/libs/stats.module";
+import { Vector3 } from "three";
 
 class Boid {
-  constructor(mesh) {
+  constructor(mesh, scene, debug) {
     this.mesh = mesh;
-    this.meshHelper = new THREE.BoxHelper(mesh, 0xffff00);
+    scene.add(this.mesh);
+
+    // this.meshHelper = new THREE.BoxHelper(mesh, 0xffff00);
+    // scene.add(this.meshHelper);
+
+    this.visionSphereRadius = 25;
+    // this.sphereHelper = new THREE.LineSegments(
+    //   new THREE.WireframeGeometry(
+    //     new THREE.SphereGeometry(this.visionSphereRadius, 16, 16)
+    //   )
+    // );
+    // this.mesh.add(this.sphereHelper);
     this.velocity = new THREE.Vector3();
     this.direction = new THREE.Vector3();
     this.lookAt = new THREE.Vector3();
@@ -31,16 +43,46 @@ class Boid {
       this.velocity.z = -this.velocity.z;
     }
 
-    let targetVec = new THREE.Vector3().subVectors(
+    let targetVec = new THREE.Vector3().addVectors(
       this.mesh.position,
       this.velocity
     );
     this.mesh.lookAt(targetVec);
 
-    this.mesh.position.x += -this.velocity.x;
-    this.mesh.position.y += -this.velocity.y;
-    this.mesh.position.z += -this.velocity.z;
-    this.meshHelper.update();
+    this.mesh.position.x += this.velocity.x;
+    this.mesh.position.y += this.velocity.y;
+    this.mesh.position.z += this.velocity.z;
+    // this.meshHelper.update();
+    // this.sphereHelper.update();
+  }
+  distanceToBoid(boid) {
+    let dx = boid.mesh.position.x - this.mesh.position.x;
+    let dy = boid.mesh.position.y - this.mesh.position.y;
+    let dz = boid.mesh.position.z - this.mesh.position.z;
+    let targetVec = new THREE.Vector3().addVectors(
+      this.mesh.position,
+      this.velocity
+    );
+    let heading = new THREE.Vector3().subVectors(
+      boid.mesh.position,
+      this.mesh.position
+    );
+    let isInFront = heading.dot(this.velocity) >= 0;
+
+    // console.log("target: %o", targetVec);
+    // console.log("Pos: %o", this.mesh.position);
+    // console.log("BoidPos: %o", boid.mesh.position);
+    // console.log("x: %d, y: %d, z: %d", dx, dy, dz);
+    // console.log("dot: %d", heading.dot(this.velocity));
+    let distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    if (isInFront && distance < this.visionSphereRadius) {
+      boid.mesh.material.color.setHex(0x00ff00);
+    } else {
+      boid.mesh.material.color.setHex(0xffffff);
+    }
+
+    return distance;
   }
 }
 
@@ -60,6 +102,7 @@ let moveLeft = false;
 let moveRight = false;
 let moveUp = false;
 let moveDown = false;
+let pauseBoids = false;
 let stats;
 const objCount = 10;
 let colorsFilled = 0;
@@ -74,10 +117,9 @@ const direction = new THREE.Vector3();
 init();
 animate();
 
-function makeIndividualBoids() {
+function makeIndividualBoids(scene) {
   const boidGeo = new THREE.ConeGeometry(1, 3.9, 12);
   boidGeo.rotateX(Math.PI * 0.5);
-  const boidMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
   const XSpacing = 5;
   const XOffset = 35;
   const YSpacing = 4;
@@ -87,11 +129,12 @@ function makeIndividualBoids() {
   for (let i = 0; i < edgeAmount; i++) {
     for (let j = 0; j < edgeAmount; j++) {
       for (let k = 0; k < edgeAmount; k++) {
+        const boidMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
         const boidMesh = new THREE.Mesh(boidGeo, boidMat);
         boidMesh.translateX(j * XSpacing + XOffset);
         boidMesh.translateY(i * YSpacing + YOffset);
         boidMesh.translateZ(k * ZSpacing + ZOffset);
-        const newBoid = new Boid(boidMesh);
+        const newBoid = new Boid(boidMesh, scene);
         boids.push(newBoid);
       }
     }
@@ -147,6 +190,14 @@ function init() {
   });
 
   scene.add(controls.getObject());
+
+  const onKeyPress = function (event) {
+    switch (event.code) {
+      case "KeyT":
+        pauseBoids = !pauseBoids;
+        break;
+    }
+  };
 
   const onKeyDown = function (event) {
     switch (event.code) {
@@ -205,6 +256,7 @@ function init() {
 
   document.addEventListener("keydown", onKeyDown);
   document.addEventListener("keyup", onKeyUp);
+  document.addEventListener("keypress", onKeyPress);
 
   // skybox
   const cubeTextureLoader = new THREE.CubeTextureLoader();
@@ -241,13 +293,23 @@ function init() {
 
   scene.add(floorMesh);
 
-  // basic scene
-  makeIndividualBoids();
-  for (let i = 0; i < boids.length; i++) {
-    scene.add(boids[i].mesh);
-    // scene.add(boids[i].meshHelper);
-    // scene.add(boids[i].meshVertexNormalHelper);
-  }
+  // Bring In The Boids
+  makeIndividualBoids(scene);
+  boids[2].mesh.material.color.setHex(0x0000ff);
+  let boid2Sphere = new THREE.LineSegments(
+    new THREE.WireframeGeometry(
+      new THREE.SphereGeometry(boids[2].visionSphereRadius, 16, 16)
+    )
+  );
+  boids[2].mesh.add(boid2Sphere);
+
+  boids[3].mesh.material.color.setHex(0x00ff00);
+  // let boid3Sphere = new THREE.LineSegments(
+  //   new THREE.WireframeGeometry(
+  //     new THREE.SphereGeometry(boids[3].visionSphereRadius, 16, 16)
+  //   )
+  // );
+  // boids[3].mesh.add(boid3Sphere);
 
   // add wire box for boids
   const boidBoxMesh = new THREE.LineSegments(
@@ -316,8 +378,14 @@ function animate() {
     controls.getObject().position.y += velocity.y * delta;
     controls.moveRight(-velocity.x * delta);
     controls.moveForward(-velocity.z * delta);
-    for (let i = 0; i < boids.length; i++) {
-      boids[i].move();
+    if (!pauseBoids) {
+      for (let i = 0; i < boids.length; i++) {
+        boids[i].move();
+        if (i !== 2) {
+          boids[2].distanceToBoid(boids[i]);
+        }
+      }
+      // console.log(boids[2].distanceToBoid(boids[3]));
     }
   }
   prevTime = time;
