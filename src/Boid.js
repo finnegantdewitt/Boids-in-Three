@@ -31,13 +31,22 @@ class Boid {
     );
   }
   move() {
-    if (this.mesh.position.x > 100 || this.mesh.position.x < -100) {
+    if (
+      (this.mesh.position.x > 100 && this.velocity.x > 0) ||
+      (this.mesh.position.x < -100 && this.velocity.x < 0)
+    ) {
       this.velocity.x = -this.velocity.x;
     }
-    if (this.mesh.position.y > 100 || this.mesh.position.y < 1) {
+    if (
+      (this.mesh.position.y > 100 && this.velocity.y > 0) ||
+      (this.mesh.position.y < 1 && this.velocity.y < 0)
+    ) {
       this.velocity.y = -this.velocity.y;
     }
-    if (this.mesh.position.z > 100 || this.mesh.position.z < -100) {
+    if (
+      (this.mesh.position.z > 100 && this.velocity.z > 0) ||
+      (this.mesh.position.z < -100 && this.velocity.z < 0)
+    ) {
       this.velocity.z = -this.velocity.z;
     }
 

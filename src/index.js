@@ -17,6 +17,9 @@ let camera, scene, renderer, controls;
 class Boids {
   constructor(boids) {
     this.boidsArray = boids;
+    this.avoidFactor = 5;
+    this.alignFactor = 10;
+    this.centeringFactor = 4;
   }
   get(index) {
     return this.boidsArray[index];
@@ -26,8 +29,6 @@ class Boids {
   }
   moveBoids() {
     for (let i = 0; i < this.boidsArray.length; i++) {
-      this.boidsArray[i].move();
-
       // Steer away from other boids (Separation)
       let distX = 0;
       let distY = 0;
@@ -44,12 +45,71 @@ class Boids {
           distZ += boid.mesh.position.z - otherBoid.mesh.position.z;
         }
       }
-      let avoidFactor = 0.0005;
       this.boidsArray[i].addToVelocity(
-        distX * avoidFactor,
-        distY * avoidFactor,
-        distX * avoidFactor
+        distX * (this.avoidFactor / 10000),
+        distY * (this.avoidFactor / 10000),
+        distZ * (this.avoidFactor / 10000)
       );
+
+      // Alignment
+      let velAvgX = 0;
+      let velAvgY = 0;
+      let velAvgZ = 0;
+      let boidNeighborCount = 0;
+      for (let j = 0; j < this.boidsArray.length; j++) {
+        if (
+          this.boidsArray[j].mesh.id !== this.boidsArray[i].mesh.id &&
+          this.boidsArray[i].isBoidInSight(this.boidsArray[j])
+        ) {
+          velAvgX += this.boidsArray[j].velocity.x;
+          velAvgY += this.boidsArray[j].velocity.y;
+          velAvgZ += this.boidsArray[j].velocity.z;
+          boidNeighborCount += 1;
+        }
+      }
+      if (boidNeighborCount > 0) {
+        velAvgX /= boidNeighborCount;
+        velAvgY /= boidNeighborCount;
+        velAvgZ /= boidNeighborCount;
+        let boid = this.boidsArray[i];
+        boid.velocity.x +=
+          (velAvgX - boid.velocity.x) * (this.alignFactor / 100);
+        boid.velocity.y +=
+          (velAvgY - boid.velocity.y) * (this.alignFactor / 100);
+        boid.velocity.z +=
+          (velAvgZ - boid.velocity.z) * (this.alignFactor / 100);
+      }
+
+      // Cohesion
+      let posAvgX = 0;
+      let posAvgY = 0;
+      let posAvgZ = 0;
+      boidNeighborCount = 0;
+      for (let j = 0; j < this.boidsArray.length; j++) {
+        if (
+          this.boidsArray[j].mesh.id !== this.boidsArray[i].mesh.id &&
+          this.boidsArray[i].isBoidInSight(this.boidsArray[j])
+        ) {
+          posAvgX += this.boidsArray[j].mesh.position.x;
+          posAvgY += this.boidsArray[j].mesh.position.y;
+          posAvgZ += this.boidsArray[j].mesh.position.z;
+          boidNeighborCount += 1;
+        }
+      }
+      if (boidNeighborCount > 0) {
+        posAvgX /= boidNeighborCount;
+        posAvgY /= boidNeighborCount;
+        posAvgZ /= boidNeighborCount;
+        let boid = this.boidsArray[i];
+        boid.velocity.x +=
+          (posAvgX - boid.mesh.position.x) * (this.centeringFactor / 1000);
+        boid.velocity.y +=
+          (posAvgY - boid.mesh.position.y) * (this.centeringFactor / 1000);
+        boid.velocity.z +=
+          (posAvgZ - boid.mesh.position.z) * (this.centeringFactor / 1000);
+      }
+
+      this.boidsArray[i].move();
 
       // if (i !== 2) {
       //   this.boidsArray[2].isBoidInSight(boids.get(i));
@@ -196,6 +256,30 @@ function init() {
           mesh.material.color.setHex(0xff00000);
         }
         break;
+      case "KeyU":
+        boids.avoidFactor += 1;
+        console.log("avoidFactor: %o", boids.avoidFactor);
+        break;
+      case "KeyJ":
+        boids.avoidFactor -= 1;
+        console.log("avoidFactor: %o", boids.avoidFactor);
+        break;
+      case "KeyI":
+        boids.alignFactor += 1;
+        console.log("alignFactor: %o", boids.alignFactor);
+        break;
+      case "KeyK":
+        boids.alignFactor -= 1;
+        console.log("alignFactor: %o", boids.alignFactor);
+        break;
+      case "KeyO":
+        boids.centeringFactor += 1;
+        console.log("centeringFactor: %o", boids.centeringFactor);
+        break;
+      case "KeyL":
+        boids.centeringFactor -= 1;
+        console.log("centeringFactor: %o", boids.centeringFactor);
+        break;
     }
   };
 
@@ -301,6 +385,10 @@ function init() {
 
   // Bring In The Boids
   makeIndividualBoids(scene);
+  const gui = new GUI();
+  gui.add(boids, "avoidFactor", 0, 100, 1);
+  gui.add(boids, "alignFactor", 0, 100, 1);
+  gui.add(boids, "centeringFactor", 0, 100, 1);
   // boids.get(2).mesh.material.color.setHex(0x0000ff);
   // let boid2Sphere = new THREE.LineSegments(
   //   new THREE.WireframeGeometry(
