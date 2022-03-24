@@ -18,6 +18,24 @@ class Boid {
     this.velocity = new THREE.Vector3()
       .set(Math.random(), Math.random(), Math.random())
       .normalize();
+    this.minX = -100;
+    this.maxX = 100;
+    this.minY = 1;
+    this.maxY = 100;
+    this.minZ = -100;
+    this.maxZ = 100;
+  }
+  setXBounds(min, max) {
+    this.minX = min;
+    this.maxX = max;
+  }
+  setYBounds(min, max) {
+    this.minY = min + 1;
+    this.maxY = max;
+  }
+  setZBounds(min, max) {
+    this.minZ = min;
+    this.maxZ = max;
   }
   setVelocity(x, y, z) {
     this.velocity.set(x, y, z);
@@ -32,20 +50,20 @@ class Boid {
   }
   move() {
     if (
-      (this.mesh.position.x > 100 && this.velocity.x > 0) ||
-      (this.mesh.position.x < -100 && this.velocity.x < 0)
+      (this.mesh.position.x > this.maxX && this.velocity.x > 0) ||
+      (this.mesh.position.x < this.minX && this.velocity.x < 0)
     ) {
       this.velocity.x = -this.velocity.x;
     }
     if (
-      (this.mesh.position.y > 100 && this.velocity.y > 0) ||
-      (this.mesh.position.y < 1 && this.velocity.y < 0)
+      (this.mesh.position.y > this.maxY && this.velocity.y > 0) ||
+      (this.mesh.position.y < this.minY && this.velocity.y < 0)
     ) {
       this.velocity.y = -this.velocity.y;
     }
     if (
-      (this.mesh.position.z > 100 && this.velocity.z > 0) ||
-      (this.mesh.position.z < -100 && this.velocity.z < 0)
+      (this.mesh.position.z > this.maxZ && this.velocity.z > 0) ||
+      (this.mesh.position.z < this.minZ && this.velocity.z < 0)
     ) {
       this.velocity.z = -this.velocity.z;
     }
@@ -70,14 +88,7 @@ class Boid {
         this.mesh.position
       );
       let isInFront = heading.dot(this.velocity) >= 0;
-      if (isInFront) {
-        boid.mesh.material.color.setHex(0x00ff00);
-      } else {
-        boid.mesh.material.color.setHex(0xffffff);
-      }
       return isInFront;
-    } else {
-      boid.mesh.material.color.setHex(0xffffff);
     }
   }
   // Maybe switch to raycasting in the future

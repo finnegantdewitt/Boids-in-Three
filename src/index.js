@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHelper";
 import arcade_carpet from "./img/arcade_carpet.png";
 import skybox_back from "./img/sky/skybox_back.png";
 import skybox_down from "./img/sky/skybox_down.png";
@@ -10,119 +9,16 @@ import skybox_right from "./img/sky/skybox_right.png";
 import skybox_up from "./img/sky/skybox_up.png";
 import GUI from "lil-gui";
 import Stats from "three/examples/jsm/libs/stats.module";
-import Boid from "./Boid.js";
+import Boids from "./Boids.js";
 
 let camera, scene, renderer, controls;
 
-class Boids {
-  constructor(boids) {
-    this.boidsArray = boids;
-    this.avoidFactor = 5;
-    this.alignFactor = 10;
-    this.centeringFactor = 4;
-  }
-  get(index) {
-    return this.boidsArray[index];
-  }
-  length() {
-    return this.boidsArray.length;
-  }
-  moveBoids() {
-    for (let i = 0; i < this.boidsArray.length; i++) {
-      // Steer away from other boids (Separation)
-      let distX = 0;
-      let distY = 0;
-      let distZ = 0;
-      for (let j = 0; j < this.boidsArray.length; j++) {
-        if (
-          this.boidsArray[j].mesh.id !== this.boidsArray[i].mesh.id &&
-          this.boidsArray[i].isBoidInSight(this.boidsArray[j])
-        ) {
-          let boid = this.boidsArray[i];
-          let otherBoid = this.boidsArray[j];
-          distX += boid.mesh.position.x - otherBoid.mesh.position.x;
-          distY += boid.mesh.position.y - otherBoid.mesh.position.y;
-          distZ += boid.mesh.position.z - otherBoid.mesh.position.z;
-        }
-      }
-      this.boidsArray[i].addToVelocity(
-        distX * (this.avoidFactor / 10000),
-        distY * (this.avoidFactor / 10000),
-        distZ * (this.avoidFactor / 10000)
-      );
-
-      // Alignment
-      let velAvgX = 0;
-      let velAvgY = 0;
-      let velAvgZ = 0;
-      let boidNeighborCount = 0;
-      for (let j = 0; j < this.boidsArray.length; j++) {
-        if (
-          this.boidsArray[j].mesh.id !== this.boidsArray[i].mesh.id &&
-          this.boidsArray[i].isBoidInSight(this.boidsArray[j])
-        ) {
-          velAvgX += this.boidsArray[j].velocity.x;
-          velAvgY += this.boidsArray[j].velocity.y;
-          velAvgZ += this.boidsArray[j].velocity.z;
-          boidNeighborCount += 1;
-        }
-      }
-      if (boidNeighborCount > 0) {
-        velAvgX /= boidNeighborCount;
-        velAvgY /= boidNeighborCount;
-        velAvgZ /= boidNeighborCount;
-        let boid = this.boidsArray[i];
-        boid.velocity.x +=
-          (velAvgX - boid.velocity.x) * (this.alignFactor / 100);
-        boid.velocity.y +=
-          (velAvgY - boid.velocity.y) * (this.alignFactor / 100);
-        boid.velocity.z +=
-          (velAvgZ - boid.velocity.z) * (this.alignFactor / 100);
-      }
-
-      // Cohesion
-      let posAvgX = 0;
-      let posAvgY = 0;
-      let posAvgZ = 0;
-      boidNeighborCount = 0;
-      for (let j = 0; j < this.boidsArray.length; j++) {
-        if (
-          this.boidsArray[j].mesh.id !== this.boidsArray[i].mesh.id &&
-          this.boidsArray[i].isBoidInSight(this.boidsArray[j])
-        ) {
-          posAvgX += this.boidsArray[j].mesh.position.x;
-          posAvgY += this.boidsArray[j].mesh.position.y;
-          posAvgZ += this.boidsArray[j].mesh.position.z;
-          boidNeighborCount += 1;
-        }
-      }
-      if (boidNeighborCount > 0) {
-        posAvgX /= boidNeighborCount;
-        posAvgY /= boidNeighborCount;
-        posAvgZ /= boidNeighborCount;
-        let boid = this.boidsArray[i];
-        boid.velocity.x +=
-          (posAvgX - boid.mesh.position.x) * (this.centeringFactor / 1000);
-        boid.velocity.y +=
-          (posAvgY - boid.mesh.position.y) * (this.centeringFactor / 1000);
-        boid.velocity.z +=
-          (posAvgZ - boid.mesh.position.z) * (this.centeringFactor / 1000);
-      }
-
-      this.boidsArray[i].move();
-
-      // if (i !== 2) {
-      //   this.boidsArray[2].isBoidInSight(boids.get(i));
-      // }
-    }
-    // console.log(boids.get(2).distanceToBoid(boids.get(3)));
-  }
-}
-
 let boids;
 const objects = [];
-const textObjs = [];
-const edgeAmount = 5;
+
+let boidBoxWidth = 300;
+let boidBoxHeight = 100;
+let boidBoxDepth = 300;
 
 let raycaster = new THREE.Raycaster();
 let mouse3D = new THREE.Vector3(); // used for raycaster
@@ -134,14 +30,8 @@ let moveLeft = false;
 let moveRight = false;
 let moveUp = false;
 let moveDown = false;
-let fDown = false;
 let pauseBoids = false;
 let stats;
-const objCount = 10;
-let colorsFilled = 0;
-let isColorsFilled = false;
-
-let isMouseDown = false;
 
 let prevTime = performance.now();
 const velocity = new THREE.Vector3();
@@ -149,32 +39,6 @@ const direction = new THREE.Vector3();
 
 init();
 animate();
-
-function makeIndividualBoids(scene) {
-  let boidsArr = [];
-  const boidGeo = new THREE.ConeGeometry(1, 3.9, 12);
-  boidGeo.rotateX(Math.PI * 0.5);
-  const XSpacing = 5;
-  const XOffset = 35;
-  const YSpacing = 4;
-  const YOffset = 2;
-  const ZSpacing = 4;
-  const ZOffset = -20;
-  for (let i = 0; i < edgeAmount; i++) {
-    for (let j = 0; j < edgeAmount; j++) {
-      for (let k = 0; k < edgeAmount; k++) {
-        const boidMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
-        const boidMesh = new THREE.Mesh(boidGeo, boidMat);
-        boidMesh.translateX(j * XSpacing + XOffset);
-        boidMesh.translateY(i * YSpacing + YOffset);
-        boidMesh.translateZ(k * ZSpacing + ZOffset);
-        const newBoid = new Boid(boidMesh, scene);
-        boidsArr.push(newBoid);
-      }
-    }
-  }
-  boids = new Boids(boidsArr);
-}
 
 function init() {
   camera = new THREE.PerspectiveCamera(
@@ -216,12 +80,6 @@ function init() {
     instructions.style.display = "";
     crosshair.style.display = "none";
     crosshairImage.style.display = "none";
-  });
-  window.addEventListener("mousedown", () => {
-    isMouseDown = true;
-  });
-  window.addEventListener("mouseup", () => {
-    isMouseDown = false;
   });
 
   scene.add(controls.getObject());
@@ -308,9 +166,6 @@ function init() {
       case "KeyQ":
         moveDown = true;
         break;
-      case "KeyF":
-        fDown = true;
-        break;
     }
   };
   const onKeyUp = function (event) {
@@ -337,9 +192,6 @@ function init() {
       case "ArrowRight":
       case "KeyQ":
         moveDown = false;
-        break;
-      case "KeyF":
-        fDown = false;
         break;
     }
   };
@@ -380,37 +232,22 @@ function init() {
   ).toNonIndexed();
   const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
   floorMesh.rotation.x = -Math.PI / 2;
+  console.log(floorMesh.position);
 
   scene.add(floorMesh);
 
   // Bring In The Boids
-  makeIndividualBoids(scene);
+  boids = new Boids(scene, boidBoxWidth, boidBoxHeight, boidBoxDepth);
   const gui = new GUI();
-  gui.add(boids, "avoidFactor", 0, 100, 1);
-  gui.add(boids, "alignFactor", 0, 100, 1);
-  gui.add(boids, "centeringFactor", 0, 100, 1);
-  // boids.get(2).mesh.material.color.setHex(0x0000ff);
-  // let boid2Sphere = new THREE.LineSegments(
-  //   new THREE.WireframeGeometry(
-  //     new THREE.SphereGeometry(boids.get(2).radiusOfVision, 16, 16)
-  //   )
-  // );
-  // boids.get(2).mesh.add(boid2Sphere);
-
-  // add wire box for boids
-  const boidBoxMesh = new THREE.LineSegments(
-    box(200, 100, 200),
-    new THREE.LineBasicMaterial({
-      color: 0xffffff,
-      linewidth: 1,
-      scale: 1,
-      dashSize: 3,
-      gapSize: 1,
-    })
-  );
-  boidBoxMesh.computeLineDistances();
-  boidBoxMesh.translateY(50);
-  scene.add(boidBoxMesh);
+  gui.add(boids, "avoidFactor", 0, 100, 1).listen().name("Avoid Factor (U/J)");
+  gui
+    .add(boids, "alignFactor", 0, 100, 1)
+    .listen()
+    .name("Alignment Factor (I/K)");
+  gui
+    .add(boids, "centeringFactor", 0, 100, 1)
+    .listen()
+    .name("Centering Factor (O/L)");
 
   // renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -471,104 +308,4 @@ function animate() {
   prevTime = time;
   renderer.render(scene, camera);
   stats.update();
-}
-
-function box(width, height, depth) {
-  (width = width * 0.5), (height = height * 0.5), (depth = depth * 0.5);
-
-  const geometry = new THREE.BufferGeometry();
-  const position = [];
-
-  position.push(
-    -width,
-    -height,
-    -depth,
-    -width,
-    height,
-    -depth,
-
-    -width,
-    height,
-    -depth,
-    width,
-    height,
-    -depth,
-
-    width,
-    height,
-    -depth,
-    width,
-    -height,
-    -depth,
-
-    width,
-    -height,
-    -depth,
-    -width,
-    -height,
-    -depth,
-
-    -width,
-    -height,
-    depth,
-    -width,
-    height,
-    depth,
-
-    -width,
-    height,
-    depth,
-    width,
-    height,
-    depth,
-
-    width,
-    height,
-    depth,
-    width,
-    -height,
-    depth,
-
-    width,
-    -height,
-    depth,
-    -width,
-    -height,
-    depth,
-
-    -width,
-    -height,
-    -depth,
-    -width,
-    -height,
-    depth,
-
-    -width,
-    height,
-    -depth,
-    -width,
-    height,
-    depth,
-
-    width,
-    height,
-    -depth,
-    width,
-    height,
-    depth,
-
-    width,
-    -height,
-    -depth,
-    width,
-    -height,
-    depth
-  );
-
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(position, 3)
-  );
-
-  return geometry;
 }
