@@ -5,25 +5,18 @@ class Boid {
     this.mesh = mesh;
     scene.add(this.mesh);
 
-    // this.meshHelper = new THREE.BoxHelper(mesh, 0xffff00);
-    // scene.add(this.meshHelper);
-
-    this.radiusOfVision = 25;
-    // this.sphereHelper = new THREE.LineSegments(
-    //   new THREE.WireframeGeometry(
-    //     new THREE.SphereGeometry(this.radiusOfVision, 16, 16)
-    //   )
-    // );
-    // this.mesh.add(this.sphereHelper);
     this.velocity = new THREE.Vector3()
       .set(Math.random(), Math.random(), Math.random())
       .normalize();
+
     this.minX = -100;
     this.maxX = 100;
     this.minY = 1;
     this.maxY = 100;
     this.minZ = -100;
     this.maxZ = 100;
+    this.wallMargin = 10;
+    this.turnFactor = 0.2;
   }
   setXBounds(min, max) {
     this.minX = min;
@@ -49,23 +42,42 @@ class Boid {
     );
   }
   move() {
-    if (
-      (this.mesh.position.x > this.maxX && this.velocity.x > 0) ||
-      (this.mesh.position.x < this.minX && this.velocity.x < 0)
-    ) {
-      this.velocity.x = -this.velocity.x;
+    // if (
+    //   (this.mesh.position.x > this.maxX  && this.velocity.x > 0) ||
+    //   (this.mesh.position.x < this.minX && this.velocity.x < 0)
+    // ) {
+    //   this.velocity.x = -this.velocity.x;
+    // }
+    // if (
+    //   (this.mesh.position.y > this.maxY && this.velocity.y > 0) ||
+    //   (this.mesh.position.y < this.minY && this.velocity.y < 0)
+    // ) {
+    //   this.velocity.y = -this.velocity.y;
+    // }
+    // if (
+    //   (this.mesh.position.z > this.maxZ && this.velocity.z > 0) ||
+    //   (this.mesh.position.z < this.minZ && this.velocity.z < 0)
+    // ) {
+    //   this.velocity.z = -this.velocity.z;
+    // }
+
+    if (this.mesh.position.x > this.maxX - this.wallMargin) {
+      this.velocity.x += -this.turnFactor;
     }
-    if (
-      (this.mesh.position.y > this.maxY && this.velocity.y > 0) ||
-      (this.mesh.position.y < this.minY && this.velocity.y < 0)
-    ) {
-      this.velocity.y = -this.velocity.y;
+    if (this.mesh.position.x < this.minX + this.wallMargin) {
+      this.velocity.x += this.turnFactor;
     }
-    if (
-      (this.mesh.position.z > this.maxZ && this.velocity.z > 0) ||
-      (this.mesh.position.z < this.minZ && this.velocity.z < 0)
-    ) {
-      this.velocity.z = -this.velocity.z;
+    if (this.mesh.position.y > this.maxY - this.wallMargin) {
+      this.velocity.y += -this.turnFactor;
+    }
+    if (this.mesh.position.y < this.minY + this.wallMargin) {
+      this.velocity.y += this.turnFactor;
+    }
+    if (this.mesh.position.z > this.maxZ - this.wallMargin) {
+      this.velocity.z += -this.turnFactor;
+    }
+    if (this.mesh.position.z < this.minZ + this.wallMargin) {
+      this.velocity.z += this.turnFactor;
     }
 
     let targetVec = new THREE.Vector3().addVectors(
@@ -81,8 +93,8 @@ class Boid {
     // this.meshHelper.update();
     // this.sphereHelper.update();
   }
-  isBoidInSight(boid) {
-    if (this.distanceToBoid(boid) < this.radiusOfVision) {
+  isBoidInSight(boid, radius) {
+    if (this.distanceToBoid(boid) < radius) {
       let heading = new THREE.Vector3().subVectors(
         boid.mesh.position,
         this.mesh.position

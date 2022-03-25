@@ -25,7 +25,7 @@ class Boids {
 
     // generate the boids
     this.boidsArray = [];
-    const numberOfBoids = 125;
+    const numberOfBoids = 200;
     const boidGeo = new THREE.ConeGeometry(1, 3.9, 12);
     boidGeo.rotateX(Math.PI * 0.5);
     const minX = boidBoxMesh.position.x - Math.floor(boidBoxWidth / 2);
@@ -48,9 +48,10 @@ class Boids {
     }
 
     // main boid factors
-    this.avoidFactor = 9;
-    this.alignFactor = 10;
-    this.centeringFactor = 4;
+    this.avoidFactor = 50;
+    this.alignFactor = 50;
+    this.centeringFactor = 50;
+    this.radiusOfVision = 25;
   }
   get(index) {
     return this.boidsArray[index];
@@ -60,14 +61,17 @@ class Boids {
   }
   moveBoids() {
     for (let i = 0; i < this.boidsArray.length; i++) {
-      // Steer away from other boids (Separation)
+      // Separation
       let distX = 0;
       let distY = 0;
       let distZ = 0;
       for (let j = 0; j < this.boidsArray.length; j++) {
         if (
           this.boidsArray[j].mesh.id !== this.boidsArray[i].mesh.id &&
-          this.boidsArray[i].isBoidInSight(this.boidsArray[j])
+          this.boidsArray[i].isBoidInSight(
+            this.boidsArray[j],
+            Math.floor(this.radiusOfVision / 2)
+          )
         ) {
           let boid = this.boidsArray[i];
           let otherBoid = this.boidsArray[j];
@@ -77,9 +81,9 @@ class Boids {
         }
       }
       this.boidsArray[i].addToVelocity(
-        distX * (this.avoidFactor / 10000),
-        distY * (this.avoidFactor / 10000),
-        distZ * (this.avoidFactor / 10000)
+        distX * (this.avoidFactor / 6600),
+        distY * (this.avoidFactor / 6600),
+        distZ * (this.avoidFactor / 6600)
       );
 
       // Alignment
@@ -90,7 +94,10 @@ class Boids {
       for (let j = 0; j < this.boidsArray.length; j++) {
         if (
           this.boidsArray[j].mesh.id !== this.boidsArray[i].mesh.id &&
-          this.boidsArray[i].isBoidInSight(this.boidsArray[j])
+          this.boidsArray[i].isBoidInSight(
+            this.boidsArray[j],
+            this.radiusOfVision
+          )
         ) {
           velAvgX += this.boidsArray[j].velocity.x;
           velAvgY += this.boidsArray[j].velocity.y;
@@ -104,11 +111,11 @@ class Boids {
         velAvgZ /= boidNeighborCount;
         let boid = this.boidsArray[i];
         boid.velocity.x +=
-          (velAvgX - boid.velocity.x) * (this.alignFactor / 100);
+          (velAvgX - boid.velocity.x) * (this.alignFactor / 500);
         boid.velocity.y +=
-          (velAvgY - boid.velocity.y) * (this.alignFactor / 100);
+          (velAvgY - boid.velocity.y) * (this.alignFactor / 500);
         boid.velocity.z +=
-          (velAvgZ - boid.velocity.z) * (this.alignFactor / 100);
+          (velAvgZ - boid.velocity.z) * (this.alignFactor / 500);
       }
 
       // Cohesion
@@ -119,7 +126,10 @@ class Boids {
       for (let j = 0; j < this.boidsArray.length; j++) {
         if (
           this.boidsArray[j].mesh.id !== this.boidsArray[i].mesh.id &&
-          this.boidsArray[i].isBoidInSight(this.boidsArray[j])
+          this.boidsArray[i].isBoidInSight(
+            this.boidsArray[j],
+            this.radiusOfVision
+          )
         ) {
           posAvgX += this.boidsArray[j].mesh.position.x;
           posAvgY += this.boidsArray[j].mesh.position.y;
@@ -133,11 +143,11 @@ class Boids {
         posAvgZ /= boidNeighborCount;
         let boid = this.boidsArray[i];
         boid.velocity.x +=
-          (posAvgX - boid.mesh.position.x) * (this.centeringFactor / 1000);
+          (posAvgX - boid.mesh.position.x) * (this.centeringFactor / 12500);
         boid.velocity.y +=
-          (posAvgY - boid.mesh.position.y) * (this.centeringFactor / 1000);
+          (posAvgY - boid.mesh.position.y) * (this.centeringFactor / 12500);
         boid.velocity.z +=
-          (posAvgZ - boid.mesh.position.z) * (this.centeringFactor / 1000);
+          (posAvgZ - boid.mesh.position.z) * (this.centeringFactor / 12500);
       }
 
       this.boidsArray[i].move();

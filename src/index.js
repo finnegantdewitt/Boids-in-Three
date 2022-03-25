@@ -119,7 +119,9 @@ function init() {
         console.log("avoidFactor: %o", boids.avoidFactor);
         break;
       case "KeyJ":
-        boids.avoidFactor -= 1;
+        if (boids.avoidFactor > 0) {
+          boids.avoidFactor -= 1;
+        }
         console.log("avoidFactor: %o", boids.avoidFactor);
         break;
       case "KeyI":
@@ -127,7 +129,9 @@ function init() {
         console.log("alignFactor: %o", boids.alignFactor);
         break;
       case "KeyK":
-        boids.alignFactor -= 1;
+        if (boids.alignFactor > 0) {
+          boids.alignFactor -= 1;
+        }
         console.log("alignFactor: %o", boids.alignFactor);
         break;
       case "KeyO":
@@ -135,7 +139,9 @@ function init() {
         console.log("centeringFactor: %o", boids.centeringFactor);
         break;
       case "KeyL":
-        boids.centeringFactor -= 1;
+        if (boids.centeringFactor > 0) {
+          boids.centeringFactor -= 1;
+        }
         console.log("centeringFactor: %o", boids.centeringFactor);
         break;
     }
